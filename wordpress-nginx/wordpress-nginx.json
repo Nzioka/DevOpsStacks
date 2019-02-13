@@ -1,0 +1,102 @@
+{
+    "Mappings": {
+        "RegionMap": {
+            "us-east-1": { "AMI": "ami-500d8546" },
+            "us-west-1": { "AMI": "ami-252a0f45" }
+        }
+    },
+    "Outputs": {
+        "PublicDNS": {
+            "Description": "Public DNSName of the newly created EC2 instance",
+            "Value": {
+                "Fn::GetAtt": [
+                    "Ec2Instance", "PublicDnsName"
+                ]
+            }
+        }
+    },
+    "Parameters": {
+        "SshKeyName": {
+            "Default": "virginia",
+            "Description": "The SSH key to install on the instance.",
+            "Type": "AWS::EC2::KeyPair::KeyName"
+        },
+        "AnsibleRepository": {
+            "Default": "https://github.com/ansible/ansible-examples",
+            "Description": "The git repository of Ansible playbooks",
+            "Type": "String"
+        },
+        "AnsibleCheckout": {
+            "Default": "dff8123d1290b1acec5375cca292eaf966aaae96",
+            "Description": "The branch/tag/commit to checkout",
+            "Type": "String"
+        },
+        "AnsiblePlaybook": {
+            "Default": "wordpress-nginx/site.yml",
+            "Description": "The Ansible playbook to use",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "WordPressSG": {
+            "Properties": {
+                "GroupDescription": "WordPress Security Group",
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "22",
+                        "IpProtocol": "tcp",
+                        "ToPort": "22"
+                    },
+                    {
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "80",
+                        "IpProtocol": "tcp",
+                        "ToPort": "80"
+                    }
+                ]
+            },
+            "Type": "AWS::EC2::SecurityGroup"
+        },
+        "Ec2Instance": {
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "RegionMap",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        "AMI"
+                    ]
+                },
+                "InstanceType": "t2.micro",
+                "KeyName": {
+                    "Ref": "SshKeyName"
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "WordPressSG"
+                    }
+                ],
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash\n",
+                                "yum update -y\n",
+                                "yum install epel-release -y\n",
+                                "yum install -y ansible git\n",
+                                "echo \"localhost ansible_connection=local\" > /etc/ansible/hosts\n",
+                                "ansible-pull -U ", {"Ref": "AnsibleRepository"},
+                                " -C ", {"Ref": "AnsibleCheckout"},
+                                " ", {"Ref": "AnsiblePlaybook"}
+                            ]
+                        ]
+                    }
+                }
+            },
+            "Type": "AWS::EC2::Instance"
+        }
+    }
+}
