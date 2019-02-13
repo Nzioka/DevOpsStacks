@@ -45,35 +45,27 @@ Resources:
   EIP:
     Type: AWS::EC2::EIP
     Properties:
-      Domain: vpc
-        
+      Domain: vpc    
   NATGateway:
     DependsOn: VPCGatewayAttachment
     Type: AWS::EC2::NatGateway
     Properties:
-      AllocationId:
-        Fn::GetAtt:
-        - EIP
-        - AllocationId
-      SubnetId:
-        Ref: Subnet
+      AllocationId:!GetAtt 'EIP.AllocationId'
+      SubnetId:!Ref SubnetAPublic
       Tags:
         - Key: Name
           Value: !Sub '10.${ClassB}.0.0/16'
-  
   InternetGateway:
     Type: 'AWS::EC2::InternetGateway'
     Properties:
       Tags:
       - Key: Name
-        Value: !Sub '10.${ClassB}.0.0/16'
-        
+        Value: !Sub '10.${ClassB}.0.0/16'       
   VPCGatewayAttachment:
     Type: 'AWS::EC2::VPCGatewayAttachment'
     Properties:
       VpcId: !Ref VPC
-      InternetGatewayId: !Ref InternetGateway
-      
+      InternetGatewayId: !Ref InternetGateway   
   SubnetAPublic:
     Type: 'AWS::EC2::Subnet'
     Properties:
