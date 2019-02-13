@@ -30,6 +30,7 @@ Parameters:
     ConstraintDescription: 'Must be in the range [0-255]'
     MinValue: 0
     MaxValue: 255
+    
 Resources:
   VPC:
     Type: 'AWS::EC2::VPC'
@@ -40,18 +41,39 @@ Resources:
       InstanceTenancy: default
       Tags:
       - Key: Name
-        Value: !Sub '10.${ClassB}.0.0/16'
+        Value: !Sub '10.${ClassB}.0.0/16' 
+  EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+        
+  NATGateway:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+        - EIP
+        - AllocationId
+      SubnetId:
+        Ref: Subnet
+      Tags:
+        - Key: Name
+          Value: !Sub '10.${ClassB}.0.0/16'
+  
   InternetGateway:
     Type: 'AWS::EC2::InternetGateway'
     Properties:
       Tags:
       - Key: Name
         Value: !Sub '10.${ClassB}.0.0/16'
+        
   VPCGatewayAttachment:
     Type: 'AWS::EC2::VPCGatewayAttachment'
     Properties:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
+      
   SubnetAPublic:
     Type: 'AWS::EC2::Subnet'
     Properties:
