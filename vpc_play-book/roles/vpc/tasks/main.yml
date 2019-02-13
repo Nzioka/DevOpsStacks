@@ -1,0 +1,177 @@
+---
+
+# roles/vpc/tasks/main.yml
+
+
+# First task : creating the VPC.
+# We are using the variables set in the vars.yml file.
+# The module gives us back its result,
+# which contains information about our new VPC. 
+# We register it in the variable my_vpc.
+
+- name:               Create VPC
+  ec2_vpc_net:
+    name:             "{{ vpc_name }}"
+    cidr_block:       "{{ vpc_cidr_block }}"
+    region:           "{{ aws_region }}"
+    state:            "present"
+  register: dev_VPC
+
+
+# We now use the set_fact module 
+# to save the id of the VPC in a new variable.
+
+- name:               Set VPC ID in variable
+  set_fact:
+    vpc_id:           "{{ my_vpc.vpc.id }}"
+
+
+# Create first public subnet
+
+- name:               Create Staging Public Subnet_1 in AZ us-east-1a
+  ec2_vpc_subnet:
+    state:            "present"
+    vpc_id:           "{{ vpc_id }}"
+    cidr:             "{{ public_subnet_1_cidr }}"
+    az:               "{{ aws_region }}a"
+    region:           "{{ aws_region }}"
+    resource_tags:
+      Name:           "Staging_Public Subnet_1a"
+  register: public_subnet_1a
+
+# We save the id of the Public Subnet in a new variable.
+
+- name:               Set Public Subnet ID in variable
+  set_fact:
+    public_subnet_id_a: "{{ public_subnet_1a.subnet.id }}"
+
+#Create second Public subnet
+- name:               Create Staging Public Subnet_2 in AZ us-east-1b
+  ec2_vpc_subnet:
+    state:            "present"
+    vpc_id:           "{{ vpc_id }}"
+    cidr:             "{{ public_subnet_2_cidr }}"
+    az:               "{{ aws_region }}b"
+    region:           "{{ aws_region }}"
+    resource_tags:
+      Name:           "Staging_Public Subnet_1b"
+  register: public_subnet_1b
+
+# We save the id of the Public Subnet in a new variable.
+
+- name:               Set Public Subnet ID in variable
+  set_fact:
+    public_subnet_id_b: "{{ public_subnet_1b.subnet.id }}"
+
+# Create staging private subnet 1
+
+- name:               Create Staging Private Subnet_1 in AZ us-east-1a
+  ec2_vpc_subnet:
+    state:            "present"
+    vpc_id:           "{{ vpc_id }}"
+    cidr:             "{{ private_subnet_1_cidr }}"
+    az:               "{{ aws_region }}a"
+    region:           "{{ aws_region }}"
+    resource_tags:
+      Name:           "Staging_Private Subnet_1a"
+  register: private_subnet_1a
+
+- name:               Set Private Subnet ID in variable
+  set_fact:
+    private_subnet_id_a: "{{ private_subnet_1a.subnet.id }}"
+
+# Create staging private subnet 2
+#
+- name:               Create Staging Private Subnet_2 in AZ us-east-1b
+  ec2_vpc_subnet:
+    state:            "present"
+    vpc_id:           "{{ vpc_id }}"
+    cidr:             "{{ private_subnet_2_cidr }}"
+    az:               "{{ aws_region }}b"
+    region:           "{{ aws_region }}"
+    resource_tags:
+      Name:           "Staging_Private Subnet_1b"
+  register: private_subnet_1b
+
+- name:               Set Private Subnet ID in variable
+  set_fact:
+    private_subnet_id_b: "{{ private_subnet_1b.subnet.id }}"
+
+
+# Create IGW
+
+- name:               Create Internet Gateway for VPC
+  ec2_vpc_igw:
+    vpc_id:           "{{ vpc_id }}"
+    region:           "{{ aws_region }}"
+    state:            "present"
+  register: staging_vpc_igw
+
+
+# We save the id of the Internet Gateway in a new variable.
+
+- name:               Set Internet Gateway ID in variable
+  set_fact:
+    igw_id:           "{{ staging_vpc_igw.gateway_id }}"
+
+#Create NAT and allocate EIP to use with NAT GW
+
+- name: Create new nat gateway and allocate new EIP.
+  ec2_vpc_nat_gateway:
+    state: present
+    subnet_id: "{{ public_subnet_id_a }}"
+    wait: yes
+    if_exist_do_not_create: true
+    region: "{{ aws_region }}"
+  register: staging_nat_gateway
+
+- name: Set Nat Gateway ID in variable
+  set_fact:
+    nat_gateway_id: "{{ staging_nat_gateway.nat_gateway_id }}"
+
+# set up public  Route Table. 
+
+- name: Set up public subnet in us-west-2a route table
+  ec2_vpc_route_table:
+    vpc_id:           "{{ vpc_id }}"
+    state:            "present"
+    region:           "{{ aws_region }}"
+    tags:
+      Name:           "Staging_Public"
+    subnets:
+      - "{{ public_subnet_id_a }}"
+      - "{{ public_subnet_id_b }}"
+    routes:
+      - dest:         "0.0.0.0/0"
+        gateway_id:   "{{ igw_id }}"
+
+# set up private Route Table with NAT
+
+- name: Set up private subnet route table
+  ec2_vpc_route_table:
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ aws_region }}"
+    tags:
+      Name: "Staging_Private"
+    subnets:
+      - "{{ private_subnet_id_a }}"
+      - "{{ private_subnet_id_b }}"
+    routes:
+      - dest: "0.0.0.0/0"
+        gateway_id: "{{ nat_gateway_id }}"
+
+# create Security Group.
+# allow SSH access
+
+- name: Create Staging Security Group
+  ec2_group:
+    name:             "Staging  Security Group"
+    description:      "Staging Security Group"
+    vpc_id:           "{{ vpc_id }}"
+    region:           "{{ aws_region }}"
+    state:            "present"
+    rules:
+      - proto:        "tcp"
+        from_port:    "22"
+        to_port:      "22"
+        cidr_ip:      "{{ my_ip }}/32"

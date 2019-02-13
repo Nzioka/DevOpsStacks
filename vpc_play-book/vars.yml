@@ -1,0 +1,24 @@
+---
+
+############################
+# Re-Usable Variables #
+############################
+
+aws_region:     "us-east-1"
+
+# VPC Information
+vpc_name:       "Staging_VPC"
+vpc_cidr_block: "10.0.0.0/16"
+
+# For Security Group Rule
+my_ip:          "0.0.0.0"
+
+# Subnets
+public_subnet_1_cidr:  "10.0.0.0/24"
+private_subnet_1_cidr: "10.0.1.0/24"
+
+
+# Subnets
+public_subnet_2_cidr:  "10.0.10.0/24"
+private_subnet_2_cidr: "10.0.11.0/24"
+
