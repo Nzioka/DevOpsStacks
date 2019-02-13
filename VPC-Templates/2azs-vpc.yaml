@@ -52,9 +52,6 @@ Resources:
     Properties:
       AllocationId:!GetAtt 'EIP.AllocationId'
       SubnetId:!Ref SubnetAPublic
-      Tags:
-        - Key: Name
-          Value: !Sub '10.${ClassB}.0.0/16'
   InternetGateway:
     Type: 'AWS::EC2::InternetGateway'
     Properties:
