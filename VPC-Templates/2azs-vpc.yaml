@@ -313,16 +313,12 @@ Resources:
           - ''
           - - "#!/bin/bash\n"
             - 'yum update -y
-
 '
             - 'yum install epel-release -y
-
 '
             - 'yum install -y ansible git
-
 '
             - 'echo "localhost ansible_connection=local" > /etc/ansible/hosts
-
 '
             - 'ansible-pull -U '
             - Ref: AnsibleRepository
